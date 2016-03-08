@@ -29,13 +29,13 @@ function getTime()
 end
 
 local function checkLevel(level)
-   assert(level, tostring(level))
+   assert(level, "argument value: " .. tostring(level))
 
    local argType = type(level)
 
    if argType == "number" then
       return level
-   elseif paramType == "string" then
+   elseif argType == "string" then
       if not levelNames[level] then
 	 error("Unknown level: " .. level)
       end
@@ -197,3 +197,9 @@ function Logger:removehandler(hdlr)
       self.handlers[hdlr] = nil
    end
 end
+
+local logging = {}
+logging.FileHandler = FileHandler
+logging.Logger      = Logger
+
+return logging
