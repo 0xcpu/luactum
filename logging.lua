@@ -25,9 +25,7 @@ local levelNames = {
 }
 
 function getTime()
-   -- to do
-
-   -- return " - "..year.."."..month.."."..day.."-"..hour..":"..minute..":"..second.."\n"
+   return os.date()
 end
 
 local function checkLevel(level)
