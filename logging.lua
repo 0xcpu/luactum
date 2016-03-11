@@ -1,48 +1,33 @@
-local CRITICAL = 50
-local FATAL = CRITICAL
-local ERROR = 40
-local WARNING = 30
-local WARN = WARNING
-local INFO = 20
-local DEBUG = 10
-local NOTSET = 0
-
-
 local levelNames = {
-   [CRITICAL]   =   "CRITICAL",
-   [ERROR]      =   "ERROR",
-   [WARNING]    =   "WARNING",
-   [INFO]       =   "INFO",
-   [DEBUG]      =   "DEBUG",
-   [NOTSET]     =   "NOTSET",
-   ["CRITICAL"] =   CRITICAL,
-   ["ERROR"]    =   ERROR,
-   ["WARN"]     =   WARNING,
-   ["WARNING"]  =   WARNING,
-   ["INFO"]     =   INFO,
-   ["DEBUG"]    =   DEBUG,
-   ["NOTSET"]   =   NOTSET
+   CRITICAL = 50,
+   ERROR    = 40,
+   WARNING  = 30,
+   INFO     = 20,
+   DEBUG    = 10,
+   NOTSET   = 0
 }
+
+for k, v in pairs(levelNames) do
+   levelNames[v] = k
+end
 
 function getTime()
    return os.date()
 end
 
 local function checkLevel(level)
-   assert(level, "argument value: " .. tostring(level))
-
    local argType = type(level)
 
    if argType == "number" then
       return level
    elseif argType == "string" then
       if not levelNames[level] then
-	 error("Unknown level: " .. level)
+	 return nil
       end
       
       return levelNames[level]
    else
-      error("Level is not an integer or a valid string: " .. level)
+      return nil
    end
 end
 
@@ -71,9 +56,9 @@ function LogRecord.new(name, msg, level, func)
 end
 
 function LogRecord:getMessage()
-   return string.format("<LogRecord>: %s %s %s %s %s",
-			self.name, self.msg, self.levelname,
-			self.levelno, self.func)
+   return string.format('<LogRecord>: %s %s %s %s %s',
+			self.name, self.msg, self.levelno,
+			self.levelname, self.func)
 end
 
 local FileHandler = {}
@@ -87,9 +72,9 @@ setmetatable(FileHandler, {
 
 function FileHandler.new(fileName, mode, level)
    local self    = setmetatable({}, FileHandler)
-   self.fileName = fileName or "log.txt"
-   self.mode     = mode or "a+"
-   self.level    = checkLevel(level) or NOTSET
+   self.fileName = fileName or 'log.txt'
+   self.mode     = mode or 'a+'
+   self.level    = checkLevel(level) or levelNames.NOTSET
 
    return self
 end
@@ -100,7 +85,7 @@ function FileHandler:handle(record)
       io.stderr:write("File opening error: " .. errMsg)
       return
    else
-      fh:write(record:getMessage() .. getTime())
+      fh:write(record:getMessage() .. ' ' .. getTime())
       fh:close()
    end
 end
@@ -118,7 +103,7 @@ function Logger.new(name, level)
    local self    = setmetatable({}, Logger)
    self.name     = name or "MainLogger"
    self.level    = checkLevel(level)
-   self.handlers = {}
+   self.handlers = {FileHandler()}
    self.disabled = false
 
    return self
@@ -150,39 +135,9 @@ function Logger:isEnabledFor(level)
    return level >= self.level
 end
 
-function Logger:debug(msg)
-   if self:isEnabledFor(DEBUG) then
-      self:log(msg, DEBUG)
-   end
-end
-
-function Logger:info(msg)
-   if self:isEnabledFor(INFO) then
-      self:log(msg, INFO)
-   end
-end
-
-function Logger:warning(msg)
-   if self:isEnabledFor(WARNING) then
-      self:log(msg, WARNING)
-   end
-end
-
-function Logger:error(msg)
-   if self:isEnabledFor(ERROR) then
-      self:log(msg, ERROR)
-   end
-end
-
-function Logger:critical(msg)
-   if self:isEnabledFor(CRITICAL) then
-      self:log(msg, CRITICAL)
-   end
-end
-
 function Logger:log(msg, level)
    local record = self:makeRecord(self.name, msg, level,
-				  debug.getinfo(3, "n").name)
+				  debug.getinfo(3, 'n').name)
    self:handle(record)
 end
 
@@ -195,6 +150,17 @@ end
 function Logger:removehandler(hdlr)
    if self.handlers[hdlr] then
       self.handlers[hdlr] = nil
+   end
+end
+
+local logFuncs = {'debug', 'info', 'warning', 'error', 'critical'}
+
+for k, v in pairs(logFuncs) do
+   Logger[v] = function(self, msg)
+      local level = levelNames[v:upper()]
+      if self:isEnabledFor(level) then
+	 self:log(msg, level)
+      end
    end
 end
 
