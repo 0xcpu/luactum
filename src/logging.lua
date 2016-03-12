@@ -1,39 +1,5 @@
-local levelNames = {
-   CRITICAL = 50,
-   ERROR    = 40,
-   WARNING  = 30,
-   INFO     = 20,
-   DEBUG    = 10,
-   NOTSET   = 0
-}
-
-for k, v in pairs(levelNames) do
-   levelNames[v] = k
-end
-
-function getTime()
-   return os.date()
-end
-
-local function checkLevel(level)
-   local argType = type(level)
-
-   if argType == "number" then
-      return level
-   elseif argType == "string" then
-      if not levelNames[level] then
-	 return nil
-      end
-      
-      return levelNames[level]
-   else
-      return nil
-   end
-end
-
-local function getLevelName(level)
-   return levelNames[level]
-end
+local utils  = require "utils"
+local levels = require "levels"
 
 local LogRecord = {}
 LogRecord.__index = LogRecord
@@ -49,7 +15,7 @@ function LogRecord.new(name, msg, level, func)
    self.name      = name
    self.msg       = msg
    self.levelno   = level
-   self.levelname = getLevelName(level)
+   self.levelname = levels.getLevelName(level)
    self.func      = func or "no func"
 
    return self
@@ -74,7 +40,7 @@ function FileHandler.new(fileName, mode, level)
    local self    = setmetatable({}, FileHandler)
    self.fileName = fileName or 'log.txt'
    self.mode     = mode or 'a+'
-   self.level    = checkLevel(level) or levelNames.NOTSET
+   self.level    = levels.checkLevel(level) or 0
 
    return self
 end
@@ -85,7 +51,7 @@ function FileHandler:handle(record)
       io.stderr:write("File opening error: " .. errMsg)
       return
    else
-      fh:write(record:getMessage() .. ' ' .. getTime())
+      fh:write(table.concat({record:getMessage(), ' ', utils.getTime(), '\n'}))
       fh:close()
    end
 end
@@ -102,7 +68,7 @@ setmetatable(Logger, {
 function Logger.new(name, level)
    local self    = setmetatable({}, Logger)
    self.name     = name or "MainLogger"
-   self.level    = checkLevel(level)
+   self.level    = levels.checkLevel(level) or 0
    self.handlers = {FileHandler()}
    self.disabled = false
 
@@ -110,7 +76,7 @@ function Logger.new(name, level)
 end
 
 function Logger:setLevel(level)
-   self.level = checkLevel(level)
+   self.level = levels.checkLevel(level)
 end
 
 function Logger:makeRecord(name, msg, level)
@@ -153,19 +119,21 @@ function Logger:removehandler(hdlr)
    end
 end
 
-local logFuncs = {'debug', 'info', 'warning', 'error', 'critical'}
-
-for k, v in pairs(logFuncs) do
+local levelFuncs = levels.getLevelFuncs()
+for k, v in pairs(levelFuncs) do
    Logger[v] = function(self, msg)
-      local level = levelNames[v:upper()]
+      local level = levels.getLevelName(v:upper())
+      assert(level)
+      
       if self:isEnabledFor(level) then
 	 self:log(msg, level)
       end
    end
 end
 
-local logging = {}
-logging.FileHandler = FileHandler
-logging.Logger      = Logger
+local logging = {
+   FileHandler = FileHandler,
+   Logger      = Logger
+}
 
 return logging
